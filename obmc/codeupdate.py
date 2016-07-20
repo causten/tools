@@ -67,8 +67,9 @@ def code_update_bmc(ip, uname, pswd, image):
 	e.get('/org/openbmc/control/flash/bmc/attr/status')
 	msg = e.data()
 
-	if 'Update Success' in msg:
+	if 'Error' not in msg:
 		e.post('/org/openbmc/control/bmc0/action/warmReset', [])
+		print 'Successful update started, system reboot initiated'
 	else:
 		print 'Error: '+ msg
 
