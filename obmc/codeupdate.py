@@ -9,7 +9,7 @@ import sys
 import getpass
 import getopt
 import obmcrequests
-from paramiko import SSHClient
+import paramiko
 from scp import SCPClient
 import time
 
@@ -31,7 +31,8 @@ def chassis_power_off(e):
 
 
 def scp_file(ip, uname, pswd, image):
-	ssh = SSHClient()
+	ssh = paramiko.SSHClient()
+	ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 	ssh.load_system_host_keys()
 	ssh.connect(ip, username=uname, password=pswd)
 	scp = SCPClient(ssh.get_transport())
