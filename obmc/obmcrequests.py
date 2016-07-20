@@ -10,6 +10,8 @@ import pickle
 import os
 import json
 
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 ################################################################
 # This class will create a connection to the BMC ip
