@@ -1,14 +1,15 @@
 #!/usr/bin/python
-import sys
-import getpass
-import getopt
-import obmcrequests
 #################################################################################
 #  "THE BEER-WARE LICENSE" (Revision 42):
 #  <austenc@us.ibm.com> wrote this file.  As long as you retain this notice you
 #  can do whatever you want with this stuff. If we meet some day, and you think
 #  this stuff is worth it, you can buy me a beer in return.   Chris Austen
 #################################################################################
+
+import sys
+import getpass
+import getopt
+import obmcrequests
 
 leduri = '/xyz/openbmc_project/led/groups/'
 
@@ -33,18 +34,11 @@ class ledGroups:
 	def ledList(self):
 		return self.db
 
-	def getName(self, index):
-		return self.db[index][0]
-
-	def keys(self):
-		return self.db.keys()
-
 	def toggleAssert(self, index):
 		s = leduri + self.db[index][0] + '/attr/Asserted'
-		val = 0
 
-		if self.db[index][1] == 0:
-			val = 1
+		# It's binary so just flip between 1 and 0
+		val = ((self.db[index][1] + 1) % 2)
 
 		self.connection.put(s, val)
 		return
@@ -52,7 +46,6 @@ class ledGroups:
 
 
 def toggleAssert(el, option):
-	print 'Attempting to toggle'
 	el.toggleAssert(option)
 	el.refresh_groups()
 	return
@@ -100,7 +93,7 @@ def usage(name):
 	print 'Usage: Version 0.1'  
 	print name, '[-i] [-u] <-p> <-c dir>'
 	print '\t-i | --ip=        : IP / Hostname of the target BMC'
-	print '\t-p | --port=      : user name for REST interaction'
+	print '\t-p | --port=      : port for https calls (default is 443)'
 	print '\t-c | --cachedir=  : Cache REST interaction directory'
 
 
@@ -109,7 +102,6 @@ def main(argv):
 	cache  = ''
 	port 	= '443'
 	ip 		= ''
-	uname 	= ''
 
 
 	try:
