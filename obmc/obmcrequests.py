@@ -23,12 +23,13 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 # useful way to recreate with someone elses environment too
 ################################################################
 class obmcConnection:
-	def __init__(self, ip, uname, passwd, cache=''):
+	def __init__(self, ip, uname, passwd, cache='', port=443):
 		self.uname  = uname
 		self.passwd = passwd
-		self.ip     = ip
+		self.ip     = ip + ':' + str(port)
 		self.cache  = cache
 		self.cookie = ''
+		self.port   = port
 
 		if self.cache == '':
 			self.get_cookie()
@@ -86,6 +87,7 @@ class obmcConnection:
 
 			headers = {'content-Type' :'application/json'}
 			putdata = json.dumps({'data' : parm})
+
 			r = requests.put(url, cookies=cookie, data = putdata, headers=headers, verify=False)
 
 			self.response = r.json()
