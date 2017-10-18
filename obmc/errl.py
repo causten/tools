@@ -10,8 +10,9 @@ import getpass
 import getopt
 import errlparser
 import obmcrequests
+import datetime
 
-loguri = '/org/openbmc/records/events/'
+loguri = '/xyz/openbmc_project/logging/entry/'
 
 #############################################
 # Copied the hexdump function from....
@@ -19,6 +20,7 @@ loguri = '/org/openbmc/records/events/'
 #############################################
 def hexdump(src, length=16, sep='.'):
 	FILTER = ''.join([(len(repr(chr(x))) == 3) and chr(x) or sep for x in range(256)])
+
 	lines = []
 	for c in xrange(0, len(src), length):
 		chars = src[c:c+length]
@@ -31,12 +33,23 @@ def hexdump(src, length=16, sep='.'):
 	print ''.join(lines)
 
 
+#################################################################
+# Create a dictionary of all event logs
+#################################################################
 class eventLogDB:
 	def __init__(self, connection):
 		self.db = {}
-		connection.get(loguri)
-		events = connection.data()
+		print loguri
+		r = connection.get(loguri)
+		print r
+		if r == '200 OK':
+			print 'logs were found'
+			events = connection.data()
+		else:
+			sys.exit(0)
+
 		for i in events:
+			print i
 			connection.get(i)
 			self.addRec(i, connection.data())
 
@@ -60,35 +73,57 @@ class eventLogDB:
 		return self.db.keys()
 
 
+#################################################################
+# Additional Data is a string of bytes converted to ascii.  So
+# it is like ... 00 00 df 00 00 00 00 20 00 04 07 5a
+# This function will try to interpet
+# I'd like this part to get enhanced to try to analyize
+# In the mean time a hex dump makes it look good
+#################################################################
+def displayEsel(s):
+
+	tok = s.split()
+	bytelist = [0]
+
+	print 'ESEL Data:'
+
+	for k, v in enumerate(tok):
+		bytelist.append(int(v,16))
+
+	hexdump(bytelist)
+
+	return
+
+
 def displayRecordDetails(eldb, num):
 	uri = loguri + num
 
+	if eldb.db[uri]['Resolved'] == 0:
+		resolved = 'False'
+	else:
+		resolved = 'True'
+
+	x =  int(eldb.db[uri]['Timestamp'])/1000
+	ts = datetime.datetime.utcfromtimestamp(x)
+
 	print '================================================'
 	print 'Event Log     ', uri
-	print 'Message:      ', eldb.db[uri]['message']
-	print 'Time:         ', eldb.db[uri]['time']
-	print 'Severity:     ', eldb.db[uri]['severity']
-	print 'Reported By:  ', eldb.db[uri]['reported_by']
+	print 'Message:      ', eldb.db[uri]['Message']
+	print 'Time:         ', ts.isoformat(' ')
+	print 'Severity:     ', eldb.db[uri]['Severity']
+	print 'Resolved:     ', resolved
 	print 'Associations: '
 
-	try:
-		for i in eldb.db[uri]['associations']:
-			print '              ', i[2]
-	except:
-		pass
+	for i in eldb.db[uri]['associations']:
+		print '              ', i
 
-	print
-	if errlparser.validLog(eldb.db[uri]['debug_data'][16:]) == True:
-		errlparser.parserLog(eldb.db[uri]['debug_data'][16:])
+	print 'AdditionalData: '
 
-	print
-	print 'IPMI SEL Data:'
-	hexdump(eldb.db[uri]['debug_data'][0:16])
-
-	print 'Debug Data:'
-	hexdump(eldb.db[uri]['debug_data'][16:])
-
-	return
+	for i in eldb.db[uri]['AdditionalData']:
+		if 'ESEL=' in i:
+			displayEsel(i[5:])
+		else:
+			print '              ', i
 
 
 def displayDetailMenu(eldb, num):
@@ -109,14 +144,23 @@ def displayDetailMenu(eldb, num):
 
 
 def displayRecordsMenu(eldb):
-	
+
+	lines = {}
 	print
 	print '============================================================================'
-	print '{0:4}  {1:22}  {2:22}  {3}'.format('Log#', 'Severity','Date','Message')
+	print '{0:4}  {1:12}  {2:20}  {3}'.format('Log#', 'Severity','Date','Message')
 
 	for i in eldb.db:
-		num = i.replace('/org/openbmc/records/events/','')
-		print '{0:4}  {1:22}  {2:22}  {3}'.format(num, eldb.db[i]['severity'],eldb.db[i]['time'],eldb.db[i]['message'])
+		num = i.replace(loguri,'')
+		sev = eldb.db[i]['Severity'].replace('xyz.openbmc_project.Logging.Entry.Level.','')
+		ts =  datetime.datetime.utcfromtimestamp(int (eldb.db[i]['Timestamp'])/1000)
+
+		lines[eldb.db[i]['Timestamp']] = '{0:4}  {1:12}  {2:20}  {3}'. \
+			format(num, sev, ts.isoformat(' ') ,eldb.db[i]['Message'])
+
+	for k, v in sorted(lines.iteritems()):
+		print v
+
 
 	print '--------------------------------------------------------'
 	s =   'Options: # (details),  a (All details), q (quit)  >> '
@@ -145,8 +189,8 @@ def runtool(ip, uname, pswd, cache):
 			displayDetailMenu(el, option)
 
 
-def usage():
-	name = 'errl.py'
+def usage(name):
+
 	print 'Usage: Version 0.2'  
 	print name, '[-i] [-u] <-p> <-c dir>'
 	print '\t-i | --ip=        : IP / Hostname of the target BMC'
@@ -158,22 +202,29 @@ def usage():
 def main(argv):
 
 	cache  = ''
-	pswd 	= ''
+	port 	= '443'
 	ip 		= ''
-	uname 	= ''
 
 	try:
-		opts, args = getopt.getopt(argv,"hc:d:u:p:i:",["ip=","user=","password=","cachedir"])
+		opts, args = getopt.getopt(argv[1:],"hc:d:u:p:i:",["ip=","user=","password=","cachedir"])
 	except getopt.GetoptError:
-		usage()
+		usage(argv[0])
 		sys.exit(2)
 
 	for opt, arg in opts:
+
 		if opt == '-h':
-			usage()
+			usage(argv[0])
 			sys.exit()
+
 		elif opt in ("-i", "--ip"):
-			ip = arg
+
+			# Passing in a port needs to be split out
+			ip_port = arg.split(':')
+			ip = ip_port[0]
+			if len(ip_port) > 1:
+				port = ip_port[1]
+
 		elif opt in ("-u", "--user"):
 			uname = arg
 		elif opt in ("-p", "--password"):
@@ -182,14 +233,17 @@ def main(argv):
 			cache = arg
 
 	if ip == '' or uname == '':
-		usage()
+		usage(argv[0])
 		print 'ERROR: ip and user parmeters are required'
 		sys.exit(2)
 
 	if pswd == '':
 		pswd = getpass.getpass('Password:')
 
-	runtool(ip, uname, pswd, cache)
+
+	# Here is where the magic happens
+	runtool(ip, uname, paswd, cache, port)
+
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+   main(sys.argv)

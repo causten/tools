@@ -70,6 +70,7 @@ def displayLedMenu(el):
 
 def runtool(ip, uname, pswd, cache, port=443):
 
+	print port
 	e  = obmcrequests.obmcConnection(ip, uname, pswd, cache, port)
 	el = ledGroups(e)
 	
@@ -90,10 +91,12 @@ def runtool(ip, uname, pswd, cache, port=443):
 
 
 def usage(name):
-	print 'Usage: Version 0.1'  
+
+	print 'Usage: Version 0.2'
 	print name, '[-i] [-u] <-p> <-c dir>'
 	print '\t-i | --ip=        : IP / Hostname of the target BMC'
-	print '\t-p | --port=      : port for https calls (default is 443)'
+	print '\t-u | --user=      : user name for REST interaction'
+	print '\t-p | --password=  : password for REST interaction'
 	print '\t-c | --cachedir=  : Cache REST interaction directory'
 
 
@@ -103,29 +106,43 @@ def main(argv):
 	port 	= '443'
 	ip 		= ''
 
-
 	try:
-		opts, args = getopt.getopt(argv[1:],"hc:d:u:p:i:",["ip=","port=","cachedir"])
+		opts, args = getopt.getopt(argv[1:],"hc:d:u:p:i:",["ip=","user=","password=","cachedir"])
 	except getopt.GetoptError:
-		usage(argv[:1])
+		usage(argv[0])
 		sys.exit(2)
 
 	for opt, arg in opts:
+
 		if opt == '-h':
-			usage(argv[:1])
+			usage(argv[0])
 			sys.exit()
+
 		elif opt in ("-i", "--ip"):
-			ip = arg
-		elif opt in ("-p", "--port"):
-			port = arg
+
+			# Passing in a port needs to be split out
+			ip_port = arg.split(':')
+			ip = ip_port[0]
+			if len(ip_port) > 1:
+				port = ip_port[1]
+
+		elif opt in ("-u", "--user"):
+			uname = arg
+		elif opt in ("-p", "--password"):
+			pswd = arg
 		elif opt in ("-c", "--cachedir"):
 			cache = arg
 
-	if '' == ip:
-		print ("Error, ip required")
-		sys.exit(3)
+	if ip == '' or uname == '':
+		usage(argv[0])
+		print 'ERROR: ip and user parmeters are required'
+		sys.exit(2)
 
-	runtool(ip, 'root', '0penBmc', cache, port)
+	if pswd == '':
+		pswd = getpass.getpass('Password:')
+
+
+	runtool(ip, uname, paswd, cache, port)
 
 if __name__ == "__main__":
 	main(sys.argv)

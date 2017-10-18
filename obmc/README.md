@@ -1,27 +1,26 @@
-Log parsers for interacting with an OpenBMC server
-
-Usage Examples
-
-	errl.py -i 9.3.x.x -u root -c /tmp
-
-	The errl.py tool will connect over REST to a BMC and collect all the event logs
-	You then get the option to display the details.  By adding the -c <dir> you get 
-	to cache the data so the next time you run the command it will skip the https 
-	traffic and use a local copy.  The cache option will collect from the REST source
-	correctly if the file didn't exist yet.  I you want to erase the cached data simply
-	delete all the files that start with the ip address in the directory pointed to 
-	by the -c option.  If you do not add the password in the cli the script will
-	prompt you
+# Tools for OpenBMC #
 
 
-	errlparser.py -i ~/errl.20
+## Error log Interaction ##
 
-	This takes a binary file what is an error log stored in binay file.  The log 
-	must follow the epapr (http://openpowerfoundation.org/?resource_lib=linux-on-power-architecture-platform-reference) and prints out interesting information.  The functions in
-	this file are used by errl.py
+`errl.py -i <ip> -u <user> [-p <password> | -c <cache>]`
+
+The `errl.py` tool will connect over REST to a BMC and collect all the event logs
+You then get the option to display the details.  By adding the `-c <dir>` you get
+to cache the data so the next time you run the command it will skip the https
+traffic and use a local copy.  The cache option will collect from the REST source
+correctly if the file didn't exist yet.  If you want to erase the cached data simply
+delete all the files that start with the ip address in the directory pointed to
+by the -c option.  If you do not add the password in the cli the script will
+prompt you
+
+Note: A future add would be to parse the ESEL rather then just a hexdump.
+The ESEL follows the loPAPR format as described in chapter 8
+http://openpowerfoundation.org/?resource_lib=linux-on-power-architecture-platform-reference
 
 
-	codeupdate.py -i x.x.x.x -u root -t bmc -f <file>
-	
-	This will copy a bmc fw imaage from your local server to the bmc.  Then it will 
-	force the code update while perserving the network parameters
+## LED Interaction ##
+
+	`leds.py -i <ip> -u <user> [-p <password> | -c <cache>]`
+
+Displays a menu to toggle LED groups on/off
